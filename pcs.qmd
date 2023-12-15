@@ -1,0 +1,244 @@
+---
+title: "ICD-10-PCS"
+format: html
+---
+
+The __ICD-10-PCS__ (International Classification of Diseases, 10th Revision, Procedure Coding System) is a procedure classification published by the United States for classifying procedures performed in hospital inpatient health care settings. The procedure codes have been adopted under HIPAA for hospital inpatient healthcare settings.
+
+```{r}
+#| message: false
+#| warning: false
+library(icd10us)
+library(tidyverse)
+library(gt)
+library(janitor)
+```
+
+# Code Conventions
+
+ICD-10-PCS codes are composed of seven characters. Each character is an axis of classification that specifies information about the procedure performed. Within a defined code range, a character specifies the same type of information in that axis of classification.
+Example: The fifth axis of classification specifies the approach in sections 0 through 4 and 7 through 9 of the system.
+
+ICD-10-PCS has a __7-character__ alphanumeric code structure. Each character contains up to __34__ possible values. The seven characters that make up a complete code have specific meanings that vary for each of the __17__ sections of the manual.
+
+
+```{r}
+format(7^34, scientific = FALSE, big.mark = ",") # possible combinations
+```
+
+
+Each value represents a specific option for the general character definition. The 10 digits `0:9` and the 24 letters A-H, J-N, and P-Z may be used in each character.
+
+```{r}
+#| message: false
+#| warning: false
+
+# "[0-9A-HJ-NP-Z]" regex pattern
+
+valid_chars <- c(0:9,
+                 LETTERS[1:8],     # A-H
+                 LETTERS[10:14],   # J-N
+                 LETTERS[16:26])   # P-Z
+
+# length(valid_chars)
+
+stringr::str_flatten_comma(valid_chars, last = ", and ")
+```
+
+
+The letters `O` and `I` are not used so as to avoid confusion with the digits `0` and `1`.
+
+
+```{r}
+#| message: false
+#| warning: false
+pcs.structure <- tibble(
+  Character = 1:7,
+  Meaning = c('Section',
+              'Body System',
+              'Root Operation',
+              'Body Part',
+              'Approach',
+              'Device',
+              'Qualifier')) |> 
+  datawizard::data_rotate()
+
+pcs.structure[2, ] |> 
+  gt() |> 
+  cols_align(align = 'center') |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  gtExtras::gt_highlight_cols(1, 
+                              fill = 'yellow', 
+                              alpha = 0.5, 
+                              font_weight = 'bold') |> 
+  gtExtras::gt_add_divider('1', sides = 'all', style = 'solid')
+```
+
+# Section
+
+```{r}
+spl <- icd10pcs |> 
+  filter(valid_billing_code == TRUE) |> 
+  select(icd10pcs_code, icd10pcs_long_description) |> 
+  pull(icd10pcs_code) |> 
+  str_split_fixed("", n = 7) |> 
+  as.data.frame()
+
+spl <- dplyr::tibble(
+  section = spl$V1,
+  body_system = spl$V2,
+  root_operation = spl$V3,
+  body_part = spl$V4,
+  approach = spl$V5,
+  device = spl$V6,
+  qualifier = spl$V7
+)
+```
+
+
+```{r}
+tabyl(spl, section) |> 
+  untabyl() |> 
+  left_join(
+    tibble(section = icd10pcs_sections$section_digit,
+           description = icd10pcs_sections$section_description), 
+    by = join_by(section)) |> 
+  select(section, description, count = n, percent) |> 
+  arrange(desc(count)) |> 
+  gt(rowname_col = "section") |> 
+  fmt_percent(columns = percent) |> 
+  cols_align(align = 'center', columns = section) |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  opt_align_table_header("left") |> 
+  tab_header(title = "ICD-10-PCS 2024: Breakdown by Sections")
+```
+
+
+
+## Medical and Surgical (`0`)
+
+```{r}
+#| message: false
+#| warning: false
+tibble(
+  Meaning = c('Section',
+              'Body System',
+              'Root Operation',
+              'Body Part',
+              'Approach',
+              'Device',
+              'Qualifier'),
+  # Character = 1:7,
+  Code = c("0", rep("x", 6))) |> 
+  datawizard::data_rotate() |> 
+  gt() |> 
+  cols_align(align = 'center') |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  gtExtras::gt_highlight_cols(1, 
+                              fill = 'yellow', 
+                              alpha = 0.5, 
+                              font_weight = 'bold') |> 
+  gtExtras::gt_add_divider('1', sides = 'all', style = 'solid')
+```
+
+## Body System
+
+```{r}
+filter(spl, section == "0") |> 
+  tabyl(body_system) |> 
+  untabyl() |> 
+  mutate(description = map_chr(body_system, system.medsurg)) |> 
+  select(body_system, 
+         description, 
+         count = n, 
+         percent) |> 
+  arrange(desc(count)) |> 
+  gt(rowname_col = "body_system") |> 
+  fmt_percent(columns = percent) |> 
+  fmt_integer(columns = count) |> 
+  cols_align(align = 'center', columns = body_system) |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  opt_align_table_header("left") |> 
+  tab_header(title = md("**ICD-10-PCS 2024**: Body Systems"),
+             subtitle = md("Section **[0]** Medical & Surgical"))
+```
+
+## Root Operation
+
+```{r}
+tabyl(spl, root_operation, section) |> 
+  adorn_totals() |>
+  adorn_totals("col") |>
+  #adorn_percentages() |> 
+  #adorn_pct_formatting() |> 
+  #adorn_ns() |> 
+  adorn_title()
+```
+
+<br>
+
+```{r}
+filter(spl, section == "0") |> 
+  tabyl(body_system, root_operation) |> 
+  untabyl() |> 
+  mutate(description = map_chr(body_system, system.0)) |> 
+  select(system = description,
+         bs = body_system,
+         "Alteration [0]" = `0`,
+         "Bypass [1]" = `1`,
+         "Change [2]" = `2`,
+         "Control [3]" = `3`,
+         "Creation [4]" = `4`,
+         "Destruction [5]" = `5`,
+         "Detachment [6]" = `6`,
+         "Dilation [7]" = `7`,
+         "Division [8]" = `8`,
+         "Drainage [9]" = `9`,
+         "Excision [B]" = `B`,
+         "Extirpation [C]" = `C`,
+         "Extraction [D]" = `D`,
+         "Fragmentation [F]" = `F`,
+         "Fusion [G]" = `G`,
+         "Insertion [H]" = `H`,
+         "Inspection [J]" = `J`,
+         "Map [K]" = `K`,
+         "Occlusion [L]" = `L`,
+         "Reattachment [M]" = `M`,
+         "Release [N]" = `N`,
+         "Removal [P]" = `P`,
+         "Repair [Q]" = `Q`,
+         "Replacement [R]" = `R`,
+         "Reposition [S]" = `S`,
+         "Resection [T]" = `T`,
+         "Supplement [U]" = `U`,
+         "Restriction [V]" = `V`,
+         "Revision [W]" = `W`,
+         "Transfer [X]" = `X`,
+         "Transplantation [Y]" = `Y`) |> 
+  gt() |> 
+  cols_align(align = 'right', columns = bs) |>
+  cols_align(align = 'center', columns = !bs) |>
+  cols_label(bs = "System") |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  opt_align_table_header("left") |> 
+  tab_header(title = md("**ICD-10-PCS 2024**: Root Operations"),
+             subtitle = md("Section **[0]** Medical & Surgical by **Body Systems**")) |> 
+  sub_zero(zero_text = ".") |> 
+  gtExtras::gt_merge_stack(bs, system) |> 
+  opt_all_caps()
+```
+
+## Approach
+
+```{r}
+filter(spl, section == "0") |> 
+  tabyl(root_operation, approach) |> 
+  untabyl() |> 
+  arrange(desc(n))
+```
+

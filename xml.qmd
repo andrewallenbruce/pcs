@@ -1,0 +1,54 @@
+---
+title: "Untitled"
+format: html
+---
+
+```{r}
+library(xml2)
+library(XML)
+```
+
+
+```{r}
+pcs_def_xsd <- "D:\\icd_10_pcs_2024\\Zip File 2 2024 Code Tables and Index\\icd10pcs_definitions.xsd"
+pcs_def_xml <- "D:\\icd_10_pcs_2024\\Zip File 2 2024 Code Tables and Index\\icd10pcs_definitions_2024.xml"
+```
+
+
+```{r}
+def_xsd <- read_xml(pcs_def_xsd)
+def_xml <- read_xml(pcs_def_xml, as_html = TRUE)
+```
+
+```{r}
+def_xml_parsed <- xmlParse(def_xml, asText = TRUE)
+xml_text(xml_find_all(def_xml, ".//axis"))
+xmlToDataFrame(nodes = getNodeSet(def_xml_parsed, "//axis"))
+xmlToDataFrame(pcs_def_xml)
+```
+
+
+```{r}
+xml_find_all(def_xml, ".//section")
+xmlToDataFrame(nodes = getNodeSet(def_xml, "//section"))
+```
+
+```{r}
+library(xmlr)
+prs <- xmlr::parse.xmlfile(pcs_def_xml)
+xmlrToDataFrame(prs$getRootElement()$getChildren())
+prs$initialize()
+prs$getRootElement()$getChildren()
+prs$getRootElement()$getChild("section")$getChild("axis")$getChildren()
+prs$getRootElement()$getChild("section")$getChildren()[[1]]$getText()
+prs$getRootElement()$getChild("section")$getChildren()[[2]]$getChildren()
+```
+
+
+```{r}
+dplyr::tibble(
+  section = prs$getRootElement()$getChild("section")$getChildren()[[1]]$getText(),
+  operation = prs$getRootElement()$getChild("section")$getChildren()[[2]]$getText()
+)
+```
+
