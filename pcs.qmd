@@ -81,6 +81,7 @@ pcs.structure[2, ] |>
 spl <- icd10pcs |> 
   filter(valid_billing_code == TRUE) |> 
   select(icd10pcs_code, icd10pcs_long_description) |> 
+  #filter(icd10pcs_code == "10A00ZZ")
   pull(icd10pcs_code) |> 
   str_split_fixed("", n = 7) |> 
   as.data.frame()
@@ -147,10 +148,13 @@ tibble(
 ## Body System
 
 ```{r}
-filter(spl, section == "0") |> 
+body_system <- filter(spl, section == "0") |> 
   tabyl(body_system) |> 
-  untabyl() |> 
-  mutate(description = map_chr(body_system, system.medsurg)) |> 
+  untabyl()
+
+body_system$description <- unname(sys.0()[body_system$body_system])
+
+body_system |> 
   select(body_system, 
          description, 
          count = n, 
@@ -167,25 +171,30 @@ filter(spl, section == "0") |>
              subtitle = md("Section **[0]** Medical & Surgical"))
 ```
 
-## Root Operation
+## Root Operation X Body System
 
 ```{r}
-tabyl(spl, root_operation, section) |> 
-  adorn_totals() |>
-  adorn_totals("col") |>
-  #adorn_percentages() |> 
-  #adorn_pct_formatting() |> 
-  #adorn_ns() |> 
-  adorn_title()
+spl |> 
+  filter(section == "1") |> 
+  # count(root_operation, sort = TRUE)
+  # select(root = root_operation, 
+  #        part = body_part
+  #        #system = body_system
+  #        ) |> 
+  tabyl(root_operation, approach) |>
+  untabyl()
+  # adorn_totals() |>
+  # adorn_totals("col") |>
+  # adorn_title()
 ```
 
-<br>
+## Body System X Root Operation
 
 ```{r}
 filter(spl, section == "0") |> 
   tabyl(body_system, root_operation) |> 
   untabyl() |> 
-  mutate(description = map_chr(body_system, system.0)) |> 
+  mutate(description = map_chr(body_system, sys.0)) |> 
   select(system = description,
          bs = body_system,
          "Alteration [0]" = `0`,
@@ -233,12 +242,67 @@ filter(spl, section == "0") |>
   opt_all_caps()
 ```
 
-## Approach
+## Root Operation X Approach
 
 ```{r}
-filter(spl, section == "0") |> 
+apr <- filter(spl, section == "0") |> 
   tabyl(root_operation, approach) |> 
-  untabyl() |> 
-  arrange(desc(n))
+  untabyl()
+
+vct <- c(
+    '0' = 'Open',
+    '3' = 'Percutaneous',
+    '4' = 'Percutaneous Endoscopic',
+    '7' = 'Via Natural\n or Artificial Opening',
+    '8' = 'Via Natural\n or Artificial Opening\n Endoscopic',
+    'F' = 'Via Natural\n or Artificial Opening\n with Percutaneous\n  Endoscopic Assistance',
+    'X' = 'External')
+
+apr_nm <- unname(vct[names(apr)[2:8]])
+
+apr_cd <- names(vct[names(apr)[2:8]])
+
+nm <- paste0("[", apr_cd, "]\n ", apr_nm)
+
+names(apr) <- c("Root\n Operation", nm)
+
+names(apr)
+
+
+rt_nm <- unname(root.0()[apr$`Root
+ Operation`])
+
+rt_cd <- names(root.0()[apr$`Root
+ Operation`])
+
+apr$`Root
+ Operation` <- paste0("[", rt_cd, "] ", rt_nm)
+
+apr |> 
+  gt() |> 
+  cols_align(align = 'right', columns = "Root\n Operation") |>
+  cols_align(align = 'center', columns = !("Root\n Operation")) |>
+  #cols_label(bs = "System") |> 
+  opt_table_font(font = google_font(name = "Fira Code")) |> 
+  opt_table_lines(extent = "all") |> 
+  opt_align_table_header("left") |> 
+  tab_header(title = md("**ICD-10-PCS 2024**: Root Operations"),
+             subtitle = md("Section **[0]** Medical & Surgical by **Body Systems**")) |> 
+  sub_zero(zero_text = ".") |> 
+  #gtExtras::gt_merge_stack(bs, "Root\n Operation") |> 
+  opt_all_caps()
+```
+
+
+```{r}
+prep("002UX0Z") |> 
+  axes() |> 
+  section() |> 
+  system() |> 
+  root() |> 
+  part() |> 
+  approach() |> 
+  device() |> 
+  qualifier()
 ```
 

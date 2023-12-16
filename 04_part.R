@@ -1,15 +1,10 @@
 #' Return the PCS body system for section Medical & Surgical
-#' @param x ICD-10-PCS code, the second character represents the body system.
 #' @return character vector of a valid PCS body system or `NA`
 #' @autoglobal
 #' @noRd
-part.0 <- function(x) {
+part.0 <- function() {
   
-  if(is.numeric(x)) x <- as.character(x)
-  
-  if (length(x) > 1) x <- paste0(x[4], collapse = "")
-  
-  part <- vctrs::vec_c(
+  vctrs::vec_c(
     '0' = 'Brain',
     '1' = 'Cerebral Meninges',
     '2' = 'Dura Mater',
@@ -44,8 +39,17 @@ part.0 <- function(x) {
     'X' = 'Thoracic Spinal Cord',
     'Y' = 'Lumbar Spinal Cord')
   
-  code <- paste0('[', rlang::sym(x), ']')
-  part <- unname(part[x])
+}
+
+#' Return the PCS body part for section Obstetrics
+#' @return character vector of a valid PCS body system or `NA`
+#' @autoglobal
+#' @noRd
+part.1 <- function() {
   
-  return(paste(part, code))
+  vctrs::vec_c(
+    '0' = 'Productions of Conception',
+    '1' = 'Productions of Conception, Retained',
+    '2' = 'Productions of Conception, Ectopic')
+  
 }

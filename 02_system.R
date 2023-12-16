@@ -1,10 +1,8 @@
 #' Return the PCS body system for section Medical & Surgical
-#' @param x ICD-10-PCS code, the second character represents the body system.
 #' @return character vector of a valid PCS body system or `NA`
 #' @autoglobal
 #' @noRd
-
-sys.0 <- function(x) {
+sys.0 <- function() {
   vctrs::vec_c(
     '0' = 'Central Nervous System and Cranial Nerves',
     '1' = 'Peripheral Nervous System',
@@ -39,4 +37,8 @@ sys.0 <- function(x) {
     'Y' = 'Anatomical Regions, Lower Extremeties')
 }
 
-sys.1 <- function(x) {vctrs::vec_c('0' = 'Pregnancy')}
+sys.1 <- function() {
+  
+  vctrs::vec_c('0' = 'Pregnancy')
+  
+}
