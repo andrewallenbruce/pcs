@@ -2,7 +2,8 @@
 #' @return character vector of a valid PCS body system or `NA`
 #' @autoglobal
 #' @noRd
-sys.0 <- function() {
+sys.0 <- function() { # Medical/Surgical
+  
   vctrs::vec_c(
     '0' = 'Central Nervous System and Cranial Nerves',
     '1' = 'Peripheral Nervous System',
@@ -35,10 +36,18 @@ sys.0 <- function() {
     'W' = 'Anatomical Regions, General',
     'X' = 'Anatomical Regions, Upper Extremeties',
     'Y' = 'Anatomical Regions, Lower Extremeties')
+  
 }
 
-sys.1 <- function() {
+sys.1 <- function() { # Obstetrics
   
   vctrs::vec_c('0' = 'Pregnancy')
+  
+}
+
+sys.2 <- function() { # Placement
+  
+  vctrs::vec_c('W' = 'Anatomical Regions',
+               'Y' = 'Anatomical Orifices')
   
 }

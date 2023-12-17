@@ -78,6 +78,33 @@ pcs.structure[2, ] |>
 # Section
 
 ```{r}
+count(spl, section, sort = TRUE)
+count(spl, body_system, sort = TRUE)
+count(spl, root_operation, sort = TRUE)
+count(spl, body_part, sort = TRUE)
+count(spl, approach, sort = TRUE)
+count(spl, device, sort = TRUE)
+count(spl, qualifier, sort = TRUE)
+```
+
+
+
+
+```{r}
+mat <- icd10pcs |> 
+  filter(valid_billing_code == TRUE) |> 
+  pull(icd10pcs_code) |> 
+  str_split_fixed("", n = 7)
+
+
+prod(dim(mat))
+rownames(mat) <- paste0("pcs_", 1:length(mat))
+
+length(mat)
+```
+
+
+```{r}
 spl <- icd10pcs |> 
   filter(valid_billing_code == TRUE) |> 
   select(icd10pcs_code, icd10pcs_long_description) |> 

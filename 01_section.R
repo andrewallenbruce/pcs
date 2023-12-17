@@ -18,9 +18,6 @@ pcs <- function(pcs,
     call = call)
   }
   
-  # If any chars are lowercase, capitalize
-  if (grepl("[[:lower:]]*", pcs)) pcs <- toupper(pcs)
-  
   if (grepl("[^[0-9A-HJ-NP-Z]]*", pcs)) {
     cli::cli_abort(c(
       "x" = "{.strong {.val {pcs}}} contains {.emph non-valid} characters."),
@@ -57,14 +54,12 @@ pcs <- function(pcs,
   return(.qualifier)
 }
 
-#' Prepare the PCS code for processing
-#' @param x ICD-10-PCS code
-#' @return list of PCS code and the code split into individual characters
-#' @autoglobal
-#' @noRd
 prep <- function(x) {
   
   if (is.numeric(x)) x <- as.character(x)
+  
+  # If any chars are lowercase, capitalize
+  if (grepl("[[:lower:]]*", x)) x <- toupper(x)
   
   sp <- unlist(strsplit(x, ""), use.names = FALSE)
   
@@ -72,11 +67,6 @@ prep <- function(x) {
               split = sp))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 axes <- function(x) {
   
   base <- vctrs::vec_c(
@@ -89,89 +79,29 @@ axes <- function(x) {
     '7' = 'Qualifier'
   )
   
-  axes <- switch(x$split[1],
-                 '0' = base,
-                 '1' = base,
-                 '2' = { 
-                   base[4] <- "Body Region" 
-                 },
-                 '3' = { 
-                   base[4] <- "Body System/Region"
-                   base[6] <- "Substance"
-                 },
-                 '4' = {
-                   base[4] <- "Body System"
-                   base[6] <- "Function/Device"
-                 },
-                 '5' = {
-                   base[4] <- "Body System"
-                   base[5] <- "Duration"
-                   base[6] <- "Function"
-                 },
-                 '6' = {
-                   base[4] <- "Body System"
-                   base[5] <- "Duration"
-                   base[6] <- "Qualifier"
-                 },
-                 '7' = {
-                   base[4] <- "Body Region"
-                   base[6] <- "Method"
-                 },
-                 '8' = {
-                   base[4] <- "Body Region"
-                   base[6] <- "Method"
-                 },
-                 '9' = {
-                   base[4] <- "Body Region"
-                   base[6] <- "Method"
-                 },
-                 'B' = {
-                   base[3] <- "Root Type"
-                   base[5] <- "Contrast"
-                   base[6] <- "Qualifier"
-                 },
-                 'C' = {
-                   base[3] <- "Root Type"
-                   base[5] <- "Radionuclide"
-                   base[6] <- "Qualifier"
-                 },
-                 'D' = {
-                   base[3] <- "Modality"
-                   base[4] <- "Treatment Site"
-                   base[5] <- "Modality Qualifier"
-                   base[6] <- "Isotope"
-                 },
-                 'F' = {
-                   base[2] <- "Section Qualifier"
-                   base[3] <- "Root Type"
-                   base[4] <- "Body System/Region"
-                   base[5] <- "Type Qualifier"
-                   base[6] <- "Equipment"
-                 },
-                 'G' = {
-                   base[3] <- "Root Type"
-                   base[4] <- "Qualifier"
-                   base[5] <- "Qualifier"
-                   base[6] <- "Qualifier"
-                 },
-                 'H' = {
-                   base[3] <- "Root Type"
-                   base[4] <- "Qualifier"
-                   base[5] <- "Qualifier"
-                   base[6] <- "Qualifier"
-                 },
-                 'X' = {
-                   base[6] <- "Device/Substance/Technology"
-                 })
-
+  axes <- switch(
+    x$split[1],
+    '0' = base,
+    '1' = base,
+    '2' = { base[4] <- "Body Region" },
+    '3' = { c(base[4], base[6]) %<-% c("Body System/Region", "Substance") },
+    '4' = { c(base[4], base[6]) %<-% c("Body System/Region", "Function/Device") },
+    '5' = { c(base[4], base[5], base[6]) %<-% c("Body System", "Duration", "Function") },
+    '6' = { c(base[4], base[5], base[6]) %<-% c("Body System", "Duration", "Qualifier") },
+    '7' = ,
+    '8' = ,
+    '9' = { c(base[4], base[6]) %<-% c("Body Region", "Method") },
+    'B' = { c(base[3], base[5], base[6]) %<-% c("Root Type", "Contrast", "Qualifier") },
+    'C' = { c(base[3], base[5], base[6]) %<-% c("Root Type", "Radionuclide", "Qualifier") },
+    'D' = { c(base[3], base[4], base[5], base[6]) %<-% c("Modality", "Treatment Site", "Modality Qualifier", "Isotope") },
+    'F' = { c(base[2], base[3], base[4], base[5], base[6]) %<-% c("Section Qualifier", "Root Type", "Body System/Region", "Type Qualifier", "Equipment") },
+    'G' = ,
+    'H' = { c(base[3], base[4], base[5], base[6]) %<-% c("Root Type", "Qualifier", "Qualifier", "Qualifier") },
+    'X' = { base[6] <- "Device/Substance/Technology" }
+  )
   return(append(x, list(axes = unname(axes))))
 }
 
-#' Return the PCS section
-#' @param x list from prep()
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 section <- function(x) {
   
   section <- vctrs::vec_c(
@@ -202,18 +132,13 @@ section <- function(x) {
   return(append(x, list(section = section)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 system <- function(x) {
   
   system <- switch(
     x$section$axis,
     '0' = sys.0(),
     '1' = sys.1(),
-    '2' = 'Placement', # sys.3(),
+    '2' = sys.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -238,18 +163,13 @@ system <- function(x) {
   return(append(x, list(system = system)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 root <- function(x) {
   
   root <- switch(
     x$section$axis,
     '0' = root.0(),
-    '1' = 'Obstetrics', # root.1(),
-    '2' = 'Placement', # root.2(),
+    '1' = root.1(),
+    '2' = root.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -264,6 +184,8 @@ root <- function(x) {
     'G' = 'Mental Health',
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
+  
+  if (x$section$axis == '2') root <- root[x$split[2]][[1]]
   
   root <- root[x$split[3]]
   
@@ -274,18 +196,13 @@ root <- function(x) {
   return(append(x, list(root = root)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 part <- function(x) {
   
   part <- switch(
     x$section$axis,
     '0' = part.0(),
-    '1' = 'Obstetrics', # root.1(),
-    '2' = 'Placement', # root.2(),
+    '1' = part.1(),
+    '2' = part.2(), # multiple - W, Y
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -301,6 +218,8 @@ part <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
+  if (x$section$axis == '2') part <- part[x$split[3]][[1]]
+  
   part <- part[x$split[4]]
   
   part <- list(
@@ -310,18 +229,13 @@ part <- function(x) {
   return(append(x, list(part = part)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 approach <- function(x) {
   
   approach <- switch(
     x$section$axis,
     '0' = app.0(),
-    '1' = 'Obstetrics', # root.1(),
-    '2' = 'Placement', # root.2(),
+    '1' = app.1(),
+    '2' = app.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -346,18 +260,13 @@ approach <- function(x) {
   return(append(x, list(approach = approach)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 device <- function(x) {
   
   device <- switch(
     x$section$axis,
     '0' = dev.0(),
-    '1' = 'Obstetrics', # root.1(),
-    '2' = 'Placement', # root.2(),
+    '1' = dev.1(),
+    '2' = dev.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -373,6 +282,8 @@ device <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
+  if (x$section$axis == '2') device <- device[x$split[5]][[1]]
+  
   device <- device[x$split[6]]
   
   device <- list(
@@ -382,18 +293,13 @@ device <- function(x) {
   return(append(x, list(device = device)))
 }
 
-#' Return the PCS section
-#' @param x ICD-10-PCS code, the first character represents the section.
-#' @return character vector of a valid PCS section or `NA`
-#' @autoglobal
-#' @noRd
 qualifier <- function(x) {
   
   qualifier <- switch(
     x$section$axis,
     '0' = qual.0(),
-    '1' = 'Obstetrics', # root.1(),
-    '2' = 'Placement', # root.2(),
+    '1' = qual.1(),
+    '2' = qual.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',

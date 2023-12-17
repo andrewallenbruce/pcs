@@ -2,7 +2,7 @@
 #' @return character vector of a valid PCS root operation or `NA`
 #' @autoglobal
 #' @noRd
-root.0 <- function() {
+root.0 <- function() { # Medical/Surgical
 
   vctrs::vec_c(
     "0" = "Alteration",
@@ -15,11 +15,9 @@ root.0 <- function() {
     "7" = "Dilation",
     "8" = "Division",
     "9" = "Drainage",
-    # "A", No A
     "B" = "Excision",
     "C" = "Extirpation",
     "D" = "Extraction",
-    # "E", No E
     "F" = "Fragmentation",
     "G" = "Fusion",
     "H" = "Insertion",
@@ -41,11 +39,7 @@ root.0 <- function() {
   )
 }
 
-#' Return the PCS root operation for section Obstetrics
-#' @return character vector of a valid PCS root operation or `NA`
-#' @autoglobal
-#' @noRd
-root.1 <- function() {
+root.1 <- function() { # Obstetrics
   
   vctrs::vec_c(
     "2" = "Change",
@@ -61,4 +55,21 @@ root.1 <- function() {
     "T" = "Resection",
     "Y" = "Transplantation"
   )
+}
+
+root.2 <- function() { # Placement
+  
+  w <- vctrs::vec_c(
+    "0" = "Change",
+    "1" = "Compression",
+    "2" = "Dressing",
+    "3" = "Immobilization",
+    "4" = "Packing",
+    "5" = "Removal",
+    "6" = "Traction"
+  )
+  
+  y <- w[c(1, 5, 6)]
+  
+  return(list("W" = w, "Y" = y))
 }
