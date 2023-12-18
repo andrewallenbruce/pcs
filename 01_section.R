@@ -1,29 +1,12 @@
 #' @param pcs ICD-10-PCS code, a __7-character__ alphanumeric code |> 
 #' @return description
+#' @examples
+#' # example code
+#' 
 #' @autoglobal
 #' @noRd
-pcs <- function(pcs,
-                arg = rlang::caller_arg(pcs),
-                call = rlang::caller_env()) {
-  
-  if (!nzchar(pcs)) {
-    cli::cli_abort("x" = "{.strong pcs} cannot be an {.emph empty} string.", 
-                   call = call)
-    }
-  
-  if (nchar(pcs) > 7L) {
-    cli::cli_abort(c(
-    "A {.strong PCS} code cannot be more than {.emph 7 characters long}.",
-    "x" = "{.val {pcs}} is {.val {nchar(pcs)}} characters long."),
-    call = call)
-  }
-  
-  if (grepl("[^[0-9A-HJ-NP-Z]]*", pcs)) {
-    cli::cli_abort(c(
-      "x" = "{.strong {.val {pcs}}} contains {.emph non-valid} characters."),
-      call = call)
-  }
-  
+pcs <- function(pcs) {
+
   # A: Prepare
   .prep <- prep(pcs)
   
@@ -54,7 +37,28 @@ pcs <- function(pcs,
   return(.qualifier)
 }
 
-prep <- function(x) {
+prep <- function(x,
+                 arg = rlang::caller_arg(x),
+                 call = rlang::caller_env()) {
+  
+  
+  if (!nzchar(x)) {
+    cli::cli_abort("x" = "{.strong x} cannot be an {.emph empty} string.", 
+                   call = call)
+  }
+  
+  if (nchar(x) > 7L) {
+    cli::cli_abort(c(
+      "A valid {.strong PCS} code is {.emph {.strong 7} characters long}.",
+      "x" = "{.strong {.val {x}}} is {.strong {.val {nchar(x)}}} characters long."),
+      call = call)
+  }
+  
+  if (grepl("[^[0-9A-HJ-NP-Z]]*", x)) {
+    cli::cli_abort(c(
+      "x" = "{.strong {.val {x}}} contains {.emph non-valid} characters."),
+      call = call)
+  }
   
   if (is.numeric(x)) x <- as.character(x)
   
@@ -63,8 +67,19 @@ prep <- function(x) {
   
   sp <- unlist(strsplit(x, ""), use.names = FALSE)
   
-  return(list(code = x,
-              split = sp))
+  names(sp) <- c("section", 
+                 "system", 
+                 "operation", 
+                 "part", 
+                 "approach", 
+                 "device", 
+                 "qualifier")
+  
+  tbl <- paste0(unname(sp[1:3]), collapse = "")
+  
+  return(list(code = rlang::sym(x),
+              split = sp,
+              table = rlang::sym(tbl)))
 }
 
 axes <- function(x) {
@@ -99,7 +114,10 @@ axes <- function(x) {
     'H' = { c(base[3], base[4], base[5], base[6]) %<-% c("Root Type", "Qualifier", "Qualifier", "Qualifier") },
     'X' = { base[6] <- "Device/Substance/Technology" }
   )
-  return(append(x, list(axes = unname(axes))))
+  
+  base <- as.matrix(base)
+  colnames(base) <- "Meaning"
+  return(append(x, list(axes = base)))
 }
 
 section <- function(x) {
@@ -123,19 +141,15 @@ section <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  section <- section[x$split[1]]
-  
-  section <- list(
-    axis = names(section),
-    title = unname(section))
-  
-  return(append(x, list(section = section)))
+  section <- unname(section[x$split[1]])
+  names(section) <- "section"
+  return(append(x, list(description = section)))
 }
 
 system <- function(x) {
   
   system <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = sys.0(),
     '1' = sys.1(),
     '2' = sys.2(),
@@ -154,19 +168,20 @@ system <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  system <- system[x$split[2]]
+    system <- system[x$split[2]]
+    
+  if (x$split[1] == '2') { names(system) <- NULL } else { system <- unname(system) }
   
-  system <- list(
-    axis = names(system),
-    title = unname(system))
+  x$description['system'] <- system
   
-  return(append(x, list(system = system)))
+  return(x)
+
 }
 
 root <- function(x) {
   
   root <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = root.0(),
     '1' = root.1(),
     '2' = root.2(),
@@ -185,24 +200,22 @@ root <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  if (x$section$axis == '2') root <- root[x$split[2]][[1]]
-  
   root <- root[x$split[3]]
   
-  root <- list(
-    axis = names(root),
-    title = unname(root))
+  if (x$split[1] == '2') { names(root) <- NULL } else { root <- unname(root) }
   
-  return(append(x, list(root = root)))
+  x$description['operation'] <- root
+  
+  return(x)
 }
 
 part <- function(x) {
   
   part <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = part.0(),
     '1' = part.1(),
-    '2' = part.2(), # multiple - W, Y
+    '2' = part.2(),
     '3' = 'Administration',
     '4' = 'Measurement and Monitoring',
     '5' = 'Extracorporeal or Systemic Assistance and Performance',
@@ -218,21 +231,28 @@ part <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  if (x$section$axis == '2') part <- part[x$split[3]][[1]]
+  if (x$split[1] == '2') {
+    
+    part <- part[x$split[3]]
+    part <- part[x$split[4]]
+    names(part) <- NULL
+    part <- unlist(part) 
+    
+    } else { 
+      
+      part <- part[x$split[4]]
+      part <- unname(part) 
+      
+      }
   
-  part <- part[x$split[4]]
-  
-  part <- list(
-    axis = names(part),
-    title = unname(part))
-  
-  return(append(x, list(part = part)))
+  x$description['part'] <- part
+  return(x)
 }
 
 approach <- function(x) {
   
   approach <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = app.0(),
     '1' = app.1(),
     '2' = app.2(),
@@ -251,19 +271,15 @@ approach <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  approach <- approach[x$split[5]]
-  
-  approach <- list(
-    axis = names(approach),
-    title = unname(approach))
-  
-  return(append(x, list(approach = approach)))
+  approach <- unname(approach[x$split[5]])
+  x$description['approach'] <- approach
+  return(x)
 }
 
 device <- function(x) {
   
   device <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = dev.0(),
     '1' = dev.1(),
     '2' = dev.2(),
@@ -282,21 +298,19 @@ device <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  if (x$section$axis == '2') device <- device[x$split[5]][[1]]
-  
   device <- device[x$split[6]]
   
-  device <- list(
-    axis = names(device),
-    title = unname(device))
+  if (x$split[1] == '2') { names(device) <- NULL; device <- unlist(device) } 
+  else { device <- unname(device) }
   
-  return(append(x, list(device = device)))
+  x$description['device'] <- device
+  return(x)
 }
 
 qualifier <- function(x) {
   
   qualifier <- switch(
-    x$section$axis,
+    x$split[1],
     '0' = qual.0(),
     '1' = qual.1(),
     '2' = qual.2(),
@@ -315,11 +329,7 @@ qualifier <- function(x) {
     'H' = 'Substance Abuse Treatment',
     'X' = 'New Technology')
   
-  qualifier <- qualifier[x$split[7]]
-  
-  qualifier <- list(
-    axis = names(qualifier),
-    title = unname(qualifier))
-  
-  return(append(x, list(qualifier = qualifier)))
+  qualifier <- unname(qualifier[x$split[7]])
+  x$description['qualifier'] <- qualifier
+  return(x)
 }

@@ -1,7 +1,3 @@
-#' Return the PCS root operation for section Medical & Surgical
-#' @return character vector of a valid PCS root operation or `NA`
-#' @autoglobal
-#' @noRd
 root.0 <- function() { # Medical/Surgical
 
   vctrs::vec_c(

@@ -1,7 +1,3 @@
-#' Return the PCS body system for section Medical & Surgical
-#' @return character vector of a valid PCS body system or `NA`
-#' @autoglobal
-#' @noRd
 app.0 <- function() { # Medical/Surgical
   
   vctrs::vec_c(

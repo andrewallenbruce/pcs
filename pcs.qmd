@@ -78,6 +78,44 @@ pcs.structure[2, ] |>
 # Section
 
 ```{r}
+tbl_name <- icd10pcs |> 
+  filter(valid_billing_code == 0) |> 
+  select(icd10pcs_table = icd10pcs_code, 
+         icd10pcs_table_description = icd10pcs_long_description)
+
+tbl_name
+```
+
+
+```{r}
+pcs_nest <- icd10pcs |> 
+  filter(valid_billing_code == 1) |> 
+  select(icd10pcs_code, 
+         icd10pcs_long_description, 
+         procedure_class) |> 
+  mutate(icd10pcs_table = strex::str_before_nth(icd10pcs_code, "", 4), 
+         .before = 1) |> 
+  left_join(tbl_name, by = join_by(icd10pcs_table)) |> 
+  select(icd10pcs_table,
+         icd10pcs_table_description, 
+         icd10pcs_code,
+         icd10pcs_long_description,
+         procedure_class) |> 
+  nest(table_codes = c(icd10pcs_code, 
+                       icd10pcs_long_description, 
+                       procedure_class))
+
+pcs_nest
+pcs_nest$table_codes[[3]]
+```
+
+```{r}
+icd10pcs |> 
+  filter(valid_billing_code == 0)
+```
+
+
+```{r}
 count(spl, section, sort = TRUE)
 count(spl, body_system, sort = TRUE)
 count(spl, root_operation, sort = TRUE)
@@ -322,10 +360,12 @@ apr |>
 
 
 ```{r}
-prep("002UX0Z") |> 
+fail <- prep("22WUX0Z") |> 
   axes() |> 
   section() |> 
-  system() |> 
+  system()
+
+fail |> 
   root() |> 
   part() |> 
   approach() |> 

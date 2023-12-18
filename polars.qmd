@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{r}
+#| message: false
+#| warning: false
+library(polars)
+library(icd10us)
+```
+
+You can add options to executable code like this 
+
+```{r}
+pcs <- pl$DataFrame(icd10pcs)
+pcs$describe()
+```
+
+
+```{r}
+pcs_tbl <- pcs$lazy()$filter(
+  pl$col("valid_billing_code") == 0
+ )$select(
+   pl$col(c("icd10pcs_code", "icd10pcs_long_description"))
+ )$collect()
+
+pcs_tbl$columns <- c('table_code', 'table_description')
+
+pcs_tbl
+```
+
+```{r}
+pcs_codes <- pcs$lazy()$filter(
+  pl$col("valid_billing_code") == 1)$select(
+    pl$col(c('icd10pcs_code', 'icd10pcs_long_description', 'procedure_class'))
+  )$collect()
+
+pcs_codes$columns <- c('pcs_code', 'pcs_description', 'class')
+
+pcs_codes
+```
+
+
+```{r}
+pcs_codes <- pcs_codes$with_columns(
+  pl$col('pcs_code')$str$slice(0, length = 3)$alias('table_code')
+)
+
+pcs_codes
+```
+
+
+```{r}
+pcs_join <- pcs_codes$join(
+  other = pcs_tbl, 
+  on = "table_code",
+  how = "left"
+)
+
+pcs_join
+```
+
+
+
+
+```{r}
+pcs_tbl_groups <- pcs_join$
+  group_by("table_code")$
+  agg(pl$col(c("pcs_code"))$
+  count())$sort("pcs_code", 
+                descending = c(TRUE))
+
+pcs_tbl_groups$n_chunks()
+```
+
